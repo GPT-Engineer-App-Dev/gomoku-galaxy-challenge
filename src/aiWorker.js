@@ -1,7 +1,4 @@
-// AI Worker logic goes here
-import { MCTSNode, getValidMoves, checkWinner } from './gomokuLogic';
-
-const BOARD_SIZE = 15;
+import { MCTSNode, getValidMoves, checkWinner, BOARD_SIZE } from './gomokuLogic.js';
 
 self.onmessage = function(e) {
   const { board, simulationTime } = e.data;

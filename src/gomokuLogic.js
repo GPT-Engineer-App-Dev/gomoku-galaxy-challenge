@@ -1,7 +1,7 @@
-export const BOARD_SIZE = 15;
-export const WINNING_LENGTH = 5;
+const BOARD_SIZE = 15;
+const WINNING_LENGTH = 5;
 
-export const getValidMoves = (board) => {
+const getValidMoves = (board) => {
   const moves = [];
   for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
@@ -74,3 +74,5 @@ export class MCTSNode {
     this.wins += result;
   }
 }
+
+export { BOARD_SIZE, WINNING_LENGTH, getValidMoves, checkWinner, MCTSNode };

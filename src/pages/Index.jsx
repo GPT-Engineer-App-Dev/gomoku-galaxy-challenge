@@ -15,7 +15,7 @@ const Index = () => {
   const [aiStats, setAiStats] = useState(null);
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../aiWorker.js', import.meta.url));
+    workerRef.current = new Worker(new URL('../aiWorker.js', import.meta.url), { type: 'module' });
     workerRef.current.onmessage = (e) => {
       const { move, simulations, winRate, totalVisits } = e.data;
       handleMove(move.row, move.col);
