@@ -24,6 +24,10 @@ const Index = () => {
       setAiStats({ simulations, winRate, totalVisits });
       setIsAIThinking(false);
     };
+    workerRef.current.onerror = (error) => {
+      console.error('AI Worker error:', error);
+      setIsAIThinking(false);
+    };
 
     return () => {
       workerRef.current.terminate();
@@ -34,22 +38,41 @@ const Index = () => {
     if (gameMode === 'ai' && currentPlayer === 'O' && !winner && !isAIThinking) {
       setIsAIThinking(true);
       workerRef.current.postMessage({ board, simulationTime });
-    }
-  }, [currentPlayer, gameMode, winner, board, simulationTime, isAIThinking]);
 
-  const handleMove = (row, col) => {
+      // Set a timeout to handle cases where the AI doesn't respond
+      const timeoutId = setTimeout(() => {
+        console.error('AI timed out');
+        setIsAIThinking(false);
+        // Make a random move as a fallback
+        const emptySpots = board.flatMap((row, i) => 
+          row.map((cell, j) => cell === null ? [i, j] : null).filter(Boolean)
+        );
+        if (emptySpots.length > 0) {
+          const [row, col] = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+          handleMove(row, col);
+        }
+      }, simulationTime + 1000); // Wait for simulationTime plus 1 second
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentPlayer, gameMode, winner, board, simulationTime, isAIThinking, handleMove]);
+
+  const handleMove = useCallback((row, col) => {
     if (board[row][col] || winner || isAIThinking || (gameMode === 'ai' && currentPlayer === 'O')) return;
 
-    const newBoard = board.map(r => [...r]);
-    newBoard[row][col] = currentPlayer;
-    setBoard(newBoard);
-
-    if (checkWinner(newBoard, row, col)) {
-      setWinner(currentPlayer);
-    } else {
-      setCurrentPlayer(currentPlayer === 'X' ? 'O' : 'X');
-    }
-  };
+    setBoard(prevBoard => {
+      const newBoard = prevBoard.map(r => [...r]);
+      newBoard[row][col] = currentPlayer;
+      
+      if (checkWinner(newBoard, row, col)) {
+        setWinner(currentPlayer);
+      } else {
+        setCurrentPlayer(prev => prev === 'X' ? 'O' : 'X');
+      }
+      
+      return newBoard;
+    });
+  }, [board, winner, isAIThinking, gameMode, currentPlayer]);
 
   // The checkWinner function is now imported from gomokuLogic.js
 
@@ -76,7 +99,10 @@ const Index = () => {
         {winner ? (
           <p className="text-xl font-semibold">Winner: {winner}</p>
         ) : isAIThinking ? (
-          <p className="text-xl">AI is thinking...</p>
+          <div className="flex items-center">
+            <p className="text-xl mr-2">AI is thinking...</p>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+          </div>
         ) : (
           <p className="text-xl">Current player: {currentPlayer}</p>
         )}
