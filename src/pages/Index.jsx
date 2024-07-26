@@ -3,6 +3,40 @@ import { Button } from "@/components/ui/button";
 
 const BOARD_SIZE = 15;
 const WINNING_LENGTH = 5;
+const SIMULATION_TIME = 1000; // Time for MCTS in milliseconds
+
+class MCTSNode {
+  constructor(board, player, move = null, parent = null) {
+    this.board = board;
+    this.player = player;
+    this.move = move;
+    this.parent = parent;
+    this.children = [];
+    this.wins = 0;
+    this.visits = 0;
+    this.untriedMoves = getValidMoves(board);
+  }
+
+  UCTSelectChild() {
+    return this.children.reduce((best, child) => {
+      const uctValue = child.wins / child.visits + 
+        Math.sqrt(2 * Math.log(this.visits) / child.visits);
+      return uctValue > best.uctValue ? { node: child, uctValue } : best;
+    }, { node: null, uctValue: -Infinity }).node;
+  }
+
+  addChild(move, board) {
+    const childNode = new MCTSNode(board, this.player === 'X' ? 'O' : 'X', move, this);
+    this.untriedMoves = this.untriedMoves.filter(m => m.row !== move.row || m.col !== move.col);
+    this.children.push(childNode);
+    return childNode;
+  }
+
+  update(result) {
+    this.visits++;
+    this.wins += result;
+  }
+}
 
 const Index = () => {
   const [board, setBoard] = useState(Array(BOARD_SIZE).fill(Array(BOARD_SIZE).fill(null)));
@@ -55,63 +89,6 @@ const Index = () => {
     setWinner(null);
   };
 
-  const evaluateWindow = (window, player) => {
-    const opponent = player === 'X' ? 'O' : 'X';
-    let score = 0;
-
-    if (window.filter(cell => cell === player).length === 5) {
-      score += 100;
-    } else if (window.filter(cell => cell === player).length === 4 && window.filter(cell => cell === null).length === 1) {
-      score += 10;
-    } else if (window.filter(cell => cell === player).length === 3 && window.filter(cell => cell === null).length === 2) {
-      score += 5;
-    }
-
-    if (window.filter(cell => cell === opponent).length === 4 && window.filter(cell => cell === null).length === 1) {
-      score -= 50;
-    }
-
-    return score;
-  };
-
-  const evaluateBoard = (board, player) => {
-    let score = 0;
-
-    // Evaluate horizontally
-    for (let row = 0; row < BOARD_SIZE; row++) {
-      for (let col = 0; col < BOARD_SIZE - 4; col++) {
-        let window = board[row].slice(col, col + 5);
-        score += evaluateWindow(window, player);
-      }
-    }
-
-    // Evaluate vertically
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      for (let row = 0; row < BOARD_SIZE - 4; row++) {
-        let window = [board[row][col], board[row+1][col], board[row+2][col], board[row+3][col], board[row+4][col]];
-        score += evaluateWindow(window, player);
-      }
-    }
-
-    // Evaluate diagonally (top-left to bottom-right)
-    for (let row = 0; row < BOARD_SIZE - 4; row++) {
-      for (let col = 0; col < BOARD_SIZE - 4; col++) {
-        let window = [board[row][col], board[row+1][col+1], board[row+2][col+2], board[row+3][col+3], board[row+4][col+4]];
-        score += evaluateWindow(window, player);
-      }
-    }
-
-    // Evaluate diagonally (top-right to bottom-left)
-    for (let row = 0; row < BOARD_SIZE - 4; row++) {
-      for (let col = 4; col < BOARD_SIZE; col++) {
-        let window = [board[row][col], board[row+1][col-1], board[row+2][col-2], board[row+3][col-3], board[row+4][col-4]];
-        score += evaluateWindow(window, player);
-      }
-    }
-
-    return score;
-  };
-
   const getValidMoves = (board) => {
     const moves = [];
     for (let row = 0; row < BOARD_SIZE; row++) {
@@ -136,22 +113,46 @@ const Index = () => {
   };
 
   const findBestMove = (board) => {
-    const validMoves = getValidMoves(board);
-    let bestScore = -Infinity;
-    let bestMove = null;
+    const rootNode = new MCTSNode(board, 'O');
+    const endTime = Date.now() + SIMULATION_TIME;
 
-    for (const move of validMoves) {
-      board[move.row][move.col] = 'O';
-      let score = evaluateBoard(board, 'O') - evaluateBoard(board, 'X');
-      board[move.row][move.col] = null;
+    while (Date.now() < endTime) {
+      let node = rootNode;
+      let tempBoard = board.map(row => [...row]);
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
+      // Selection
+      while (node.untriedMoves.length === 0 && node.children.length > 0) {
+        node = node.UCTSelectChild();
+        tempBoard[node.move.row][node.move.col] = node.player;
+      }
+
+      // Expansion
+      if (node.untriedMoves.length > 0) {
+        const move = node.untriedMoves[Math.floor(Math.random() * node.untriedMoves.length)];
+        tempBoard[move.row][move.col] = node.player;
+        node = node.addChild(move, tempBoard);
+      }
+
+      // Simulation
+      let currentPlayer = node.player === 'X' ? 'O' : 'X';
+      while (!checkWinner(tempBoard, node.move.row, node.move.col)) {
+        const validMoves = getValidMoves(tempBoard);
+        if (validMoves.length === 0) break;
+        const move = validMoves[Math.floor(Math.random() * validMoves.length)];
+        tempBoard[move.row][move.col] = currentPlayer;
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      }
+
+      // Backpropagation
+      while (node !== null) {
+        node.update(currentPlayer === 'O' ? 1 : 0);
+        node = node.parent;
       }
     }
 
-    return bestMove || validMoves[0];
+    return rootNode.children.reduce((best, child) => 
+      child.visits > best.visits ? child : best
+    ).move;
   };
 
   return (
