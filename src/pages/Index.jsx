@@ -18,7 +18,9 @@ const Index = () => {
     workerRef.current = new Worker(new URL('../aiWorker.js', import.meta.url), { type: 'module' });
     workerRef.current.onmessage = (e) => {
       const { move, simulations, winRate, totalVisits } = e.data;
-      handleMove(move.row, move.col);
+      if (!winner && currentPlayer === 'O') {
+        handleMove(move.row, move.col);
+      }
       setAiStats({ simulations, winRate, totalVisits });
       setIsAIThinking(false);
     };
@@ -29,14 +31,14 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (gameMode === 'ai' && currentPlayer === 'O' && !winner) {
+    if (gameMode === 'ai' && currentPlayer === 'O' && !winner && !isAIThinking) {
       setIsAIThinking(true);
       workerRef.current.postMessage({ board, simulationTime });
     }
-  }, [currentPlayer, gameMode, winner, board, simulationTime]);
+  }, [currentPlayer, gameMode, winner, board, simulationTime, isAIThinking]);
 
   const handleMove = (row, col) => {
-    if (board[row][col] || winner) return;
+    if (board[row][col] || winner || isAIThinking || (gameMode === 'ai' && currentPlayer === 'O')) return;
 
     const newBoard = board.map(r => [...r]);
     newBoard[row][col] = currentPlayer;
@@ -105,7 +107,7 @@ const Index = () => {
                 key={`${rowIndex}-${colIndex}`}
                 className="w-8 h-8 border border-gray-300 flex items-center justify-center text-xl font-bold"
                 onClick={() => handleMove(rowIndex, colIndex)}
-                disabled={!!cell || !!winner || (gameMode === 'ai' && currentPlayer === 'O')}
+                disabled={!!cell || !!winner || isAIThinking || (gameMode === 'ai' && currentPlayer === 'O')}
               >
                 {cell}
               </button>
