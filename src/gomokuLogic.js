@@ -24,7 +24,7 @@ const hasNeighbor = (board, row, col) => {
   return false;
 };
 
-export const checkWinner = (board, row, col) => {
+const checkWinner = (board, row, col) => {
   const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
   return directions.some(([dx, dy]) => {
     return countConsecutive(board, row, col, dx, dy) + countConsecutive(board, row, col, -dx, -dy) - 1 >= WINNING_LENGTH;
