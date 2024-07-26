@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { BOARD_SIZE, checkWinner } from '../gomokuLogic';
+import { BOARD_SIZE, WINNING_LENGTH, checkWinner } from '../gomokuLogic';
 
 const DEFAULT_SIMULATION_TIME = 3000; // Default time for MCTS in milliseconds
 
@@ -49,23 +49,7 @@ const Index = () => {
     }
   };
 
-  const checkWinner = (board, row, col) => {
-    const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
-    return directions.some(([dx, dy]) => {
-      return countConsecutive(board, row, col, dx, dy) + countConsecutive(board, row, col, -dx, -dy) - 1 >= WINNING_LENGTH;
-    });
-  };
-
-  const countConsecutive = (board, row, col, dx, dy) => {
-    const player = board[row][col];
-    let count = 0;
-    while (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE && board[row][col] === player) {
-      count++;
-      row += dx;
-      col += dy;
-    }
-    return count;
-  };
+  // The checkWinner function is now imported from gomokuLogic.js
 
   const resetGame = () => {
     setBoard(Array(BOARD_SIZE).fill(Array(BOARD_SIZE).fill(null)));
