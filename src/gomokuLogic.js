@@ -42,7 +42,7 @@ const countConsecutive = (board, row, col, dx, dy) => {
   return count;
 };
 
-export class MCTSNode {
+class MCTSNode {
   constructor(board, player, move = null, parent = null) {
     this.board = board;
     this.player = player;
