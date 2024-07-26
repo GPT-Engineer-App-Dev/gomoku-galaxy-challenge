@@ -28,6 +28,8 @@ const hasNeighbor = (board, row, col) => {
   return false;
 };
 
+const DEFAULT_SIMULATION_TIME = 3000; // Default time for MCTS in milliseconds
+
 class MCTSNode {
   constructor(board, player, move = null, parent = null) {
     this.board = board;
@@ -66,6 +68,7 @@ const Index = () => {
   const [currentPlayer, setCurrentPlayer] = useState('X');
   const [winner, setWinner] = useState(null);
   const [gameMode, setGameMode] = useState('pvp'); // 'pvp' or 'ai'
+  const [simulationTime, setSimulationTime] = useState(DEFAULT_SIMULATION_TIME);
 
   useEffect(() => {
     if (gameMode === 'ai' && currentPlayer === 'O' && !winner) {
@@ -116,7 +119,7 @@ const Index = () => {
 
   const findBestMove = (board) => {
     const rootNode = new MCTSNode(board, 'O');
-    const endTime = Date.now() + SIMULATION_TIME;
+    const endTime = Date.now() + simulationTime;
 
     while (Date.now() < endTime) {
       let node = rootNode;
@@ -175,6 +178,24 @@ const Index = () => {
           <p className="text-xl">Current player: {currentPlayer}</p>
         )}
       </div>
+      {gameMode === 'ai' && (
+        <div className="mb-4">
+          <label htmlFor="ai-strength" className="block text-sm font-medium text-gray-700">
+            AI Strength (thinking time: {simulationTime / 1000}s)
+          </label>
+          <input
+            type="range"
+            id="ai-strength"
+            name="ai-strength"
+            min="1000"
+            max="10000"
+            step="1000"
+            value={simulationTime}
+            onChange={(e) => setSimulationTime(Number(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+      )}
       <div className="bg-white p-4 rounded-lg shadow-lg">
         {board.map((row, rowIndex) => (
           <div key={rowIndex} className="flex">
