@@ -1,81 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-
-const BOARD_SIZE = 15;
-const WINNING_LENGTH = 5;
-const SIMULATION_TIME = 1000; // Time for MCTS in milliseconds
-
-const getValidMoves = (board) => {
-  const moves = [];
-  for (let row = 0; row < BOARD_SIZE; row++) {
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      if (!board[row][col]) {
-        if (hasNeighbor(board, row, col)) {
-          moves.push({ row, col });
-        }
-      }
-    }
-  }
-  return moves;
-};
-
-const hasNeighbor = (board, row, col) => {
-  for (let i = Math.max(0, row - 1); i <= Math.min(BOARD_SIZE - 1, row + 1); i++) {
-    for (let j = Math.max(0, col - 1); j <= Math.min(BOARD_SIZE - 1, col + 1); j++) {
-      if (board[i][j]) return true;
-    }
-  }
-  return false;
-};
+import { BOARD_SIZE, checkWinner } from '../gomokuLogic';
 
 const DEFAULT_SIMULATION_TIME = 3000; // Default time for MCTS in milliseconds
 
-class MCTSNode {
-  constructor(board, player, move = null, parent = null) {
-    this.board = board;
-    this.player = player;
-    this.move = move;
-    this.parent = parent;
-    this.children = [];
-    this.wins = 0;
-    this.visits = 0;
-    this.untriedMoves = getValidMoves(board);
-  }
-
-  UCTSelectChild() {
-    return this.children.reduce((best, child) => {
-      const uctValue = child.wins / child.visits + 
-        Math.sqrt(2 * Math.log(this.visits) / child.visits);
-      return uctValue > best.uctValue ? { node: child, uctValue } : best;
-    }, { node: null, uctValue: -Infinity }).node;
-  }
-
-  addChild(move, board) {
-    const childNode = new MCTSNode(board, this.player === 'X' ? 'O' : 'X', move, this);
-    this.untriedMoves = this.untriedMoves.filter(m => m.row !== move.row || m.col !== move.col);
-    this.children.push(childNode);
-    return childNode;
-  }
-
-  update(result) {
-    this.visits++;
-    this.wins += result;
-  }
-}
-
 const Index = () => {
+  const workerRef = useRef();
   const [board, setBoard] = useState(Array(BOARD_SIZE).fill(Array(BOARD_SIZE).fill(null)));
   const [currentPlayer, setCurrentPlayer] = useState('X');
   const [winner, setWinner] = useState(null);
   const [gameMode, setGameMode] = useState('pvp'); // 'pvp' or 'ai'
   const [simulationTime, setSimulationTime] = useState(DEFAULT_SIMULATION_TIME);
+  const [isAIThinking, setIsAIThinking] = useState(false);
+
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('../aiWorker.js', import.meta.url));
+    workerRef.current.onmessage = (e) => {
+      const aiMove = e.data;
+      handleMove(aiMove.row, aiMove.col);
+      setIsAIThinking(false);
+    };
+
+    return () => {
+      workerRef.current.terminate();
+    };
+  }, []);
 
   useEffect(() => {
     if (gameMode === 'ai' && currentPlayer === 'O' && !winner) {
-      const aiMove = findBestMove(board);
-      handleMove(aiMove.row, aiMove.col);
+      setIsAIThinking(true);
+      workerRef.current.postMessage({ board, simulationTime });
     }
-  }, [currentPlayer, gameMode, winner]);
+  }, [currentPlayer, gameMode, winner, board, simulationTime]);
 
   const handleMove = (row, col) => {
     if (board[row][col] || winner) return;
@@ -117,49 +73,6 @@ const Index = () => {
 
   // Remove these functions as they are now defined outside the component
 
-  const findBestMove = (board) => {
-    const rootNode = new MCTSNode(board, 'O');
-    const endTime = Date.now() + simulationTime;
-
-    while (Date.now() < endTime) {
-      let node = rootNode;
-      let tempBoard = board.map(row => [...row]);
-
-      // Selection
-      while (node.untriedMoves.length === 0 && node.children.length > 0) {
-        node = node.UCTSelectChild();
-        tempBoard[node.move.row][node.move.col] = node.player;
-      }
-
-      // Expansion
-      if (node.untriedMoves.length > 0) {
-        const move = node.untriedMoves[Math.floor(Math.random() * node.untriedMoves.length)];
-        tempBoard[move.row][move.col] = node.player;
-        node = node.addChild(move, tempBoard);
-      }
-
-      // Simulation
-      let currentPlayer = node.player === 'X' ? 'O' : 'X';
-      while (!checkWinner(tempBoard, node.move.row, node.move.col)) {
-        const validMoves = getValidMoves(tempBoard);
-        if (validMoves.length === 0) break;
-        const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-        tempBoard[move.row][move.col] = currentPlayer;
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-      }
-
-      // Backpropagation
-      while (node !== null) {
-        node.update(currentPlayer === 'O' ? 1 : 0);
-        node = node.parent;
-      }
-    }
-
-    return rootNode.children.reduce((best, child) => 
-      child.visits > best.visits ? child : best
-    ).move;
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h1 className="text-4xl font-bold mb-6">Gomoku</h1>
@@ -174,6 +87,8 @@ const Index = () => {
       <div className="mb-4">
         {winner ? (
           <p className="text-xl font-semibold">Winner: {winner}</p>
+        ) : isAIThinking ? (
+          <p className="text-xl">AI is thinking...</p>
         ) : (
           <p className="text-xl">Current player: {currentPlayer}</p>
         )}
