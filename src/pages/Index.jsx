@@ -5,6 +5,29 @@ const BOARD_SIZE = 15;
 const WINNING_LENGTH = 5;
 const SIMULATION_TIME = 1000; // Time for MCTS in milliseconds
 
+const getValidMoves = (board) => {
+  const moves = [];
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      if (!board[row][col]) {
+        if (hasNeighbor(board, row, col)) {
+          moves.push({ row, col });
+        }
+      }
+    }
+  }
+  return moves;
+};
+
+const hasNeighbor = (board, row, col) => {
+  for (let i = Math.max(0, row - 1); i <= Math.min(BOARD_SIZE - 1, row + 1); i++) {
+    for (let j = Math.max(0, col - 1); j <= Math.min(BOARD_SIZE - 1, col + 1); j++) {
+      if (board[i][j]) return true;
+    }
+  }
+  return false;
+};
+
 class MCTSNode {
   constructor(board, player, move = null, parent = null) {
     this.board = board;
@@ -89,28 +112,7 @@ const Index = () => {
     setWinner(null);
   };
 
-  const getValidMoves = (board) => {
-    const moves = [];
-    for (let row = 0; row < BOARD_SIZE; row++) {
-      for (let col = 0; col < BOARD_SIZE; col++) {
-        if (!board[row][col]) {
-          if (hasNeighbor(board, row, col)) {
-            moves.push({ row, col });
-          }
-        }
-      }
-    }
-    return moves;
-  };
-
-  const hasNeighbor = (board, row, col) => {
-    for (let i = Math.max(0, row - 1); i <= Math.min(BOARD_SIZE - 1, row + 1); i++) {
-      for (let j = Math.max(0, col - 1); j <= Math.min(BOARD_SIZE - 1, col + 1); j++) {
-        if (board[i][j]) return true;
-      }
-    }
-    return false;
-  };
+  // Remove these functions as they are now defined outside the component
 
   const findBestMove = (board) => {
     const rootNode = new MCTSNode(board, 'O');
