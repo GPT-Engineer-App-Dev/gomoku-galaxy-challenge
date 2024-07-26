@@ -55,80 +55,103 @@ const Index = () => {
     setWinner(null);
   };
 
-  const evaluate = (board) => {
+  const evaluateWindow = (window, player) => {
+    const opponent = player === 'X' ? 'O' : 'X';
+    let score = 0;
+
+    if (window.filter(cell => cell === player).length === 5) {
+      score += 100;
+    } else if (window.filter(cell => cell === player).length === 4 && window.filter(cell => cell === null).length === 1) {
+      score += 10;
+    } else if (window.filter(cell => cell === player).length === 3 && window.filter(cell => cell === null).length === 2) {
+      score += 5;
+    }
+
+    if (window.filter(cell => cell === opponent).length === 4 && window.filter(cell => cell === null).length === 1) {
+      score -= 50;
+    }
+
+    return score;
+  };
+
+  const evaluateBoard = (board, player) => {
+    let score = 0;
+
+    // Evaluate horizontally
     for (let row = 0; row < BOARD_SIZE; row++) {
-      for (let col = 0; col < BOARD_SIZE; col++) {
-        if (board[row][col]) {
-          if (checkWinner(board, row, col)) {
-            return board[row][col] === 'X' ? -1000 : 1000;
-          }
-        }
+      for (let col = 0; col < BOARD_SIZE - 4; col++) {
+        let window = board[row].slice(col, col + 5);
+        score += evaluateWindow(window, player);
       }
     }
-    return 0;
+
+    // Evaluate vertically
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      for (let row = 0; row < BOARD_SIZE - 4; row++) {
+        let window = [board[row][col], board[row+1][col], board[row+2][col], board[row+3][col], board[row+4][col]];
+        score += evaluateWindow(window, player);
+      }
+    }
+
+    // Evaluate diagonally (top-left to bottom-right)
+    for (let row = 0; row < BOARD_SIZE - 4; row++) {
+      for (let col = 0; col < BOARD_SIZE - 4; col++) {
+        let window = [board[row][col], board[row+1][col+1], board[row+2][col+2], board[row+3][col+3], board[row+4][col+4]];
+        score += evaluateWindow(window, player);
+      }
+    }
+
+    // Evaluate diagonally (top-right to bottom-left)
+    for (let row = 0; row < BOARD_SIZE - 4; row++) {
+      for (let col = 4; col < BOARD_SIZE; col++) {
+        let window = [board[row][col], board[row+1][col-1], board[row+2][col-2], board[row+3][col-3], board[row+4][col-4]];
+        score += evaluateWindow(window, player);
+      }
+    }
+
+    return score;
   };
 
-  const minimax = (board, depth, isMax, alpha, beta) => {
-    const score = evaluate(board);
-
-    if (score === 1000 || score === -1000) {
-      return score;
-    }
-
-    if (depth === 0) {
-      return score;
-    }
-
-    if (isMax) {
-      let best = -Infinity;
-      for (let row = 0; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          if (!board[row][col]) {
-            board[row][col] = 'O';
-            best = Math.max(best, minimax(board, depth - 1, !isMax, alpha, beta));
-            board[row][col] = null;
-            alpha = Math.max(alpha, best);
-            if (beta <= alpha) break;
-          }
-        }
-      }
-      return best;
-    } else {
-      let best = Infinity;
-      for (let row = 0; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          if (!board[row][col]) {
-            board[row][col] = 'X';
-            best = Math.min(best, minimax(board, depth - 1, !isMax, alpha, beta));
-            board[row][col] = null;
-            beta = Math.min(beta, best);
-            if (beta <= alpha) break;
-          }
-        }
-      }
-      return best;
-    }
-  };
-
-  const findBestMove = (board) => {
-    let bestVal = -Infinity;
-    let bestMove = { row: -1, col: -1 };
-
+  const getValidMoves = (board) => {
+    const moves = [];
     for (let row = 0; row < BOARD_SIZE; row++) {
       for (let col = 0; col < BOARD_SIZE; col++) {
         if (!board[row][col]) {
-          board[row][col] = 'O';
-          let moveVal = minimax(board, 3, false, -Infinity, Infinity);
-          board[row][col] = null;
-          if (moveVal > bestVal) {
-            bestMove.row = row;
-            bestMove.col = col;
-            bestVal = moveVal;
+          if (hasNeighbor(board, row, col)) {
+            moves.push({ row, col });
           }
         }
       }
     }
-    return bestMove;
+    return moves;
+  };
+
+  const hasNeighbor = (board, row, col) => {
+    for (let i = Math.max(0, row - 1); i <= Math.min(BOARD_SIZE - 1, row + 1); i++) {
+      for (let j = Math.max(0, col - 1); j <= Math.min(BOARD_SIZE - 1, col + 1); j++) {
+        if (board[i][j]) return true;
+      }
+    }
+    return false;
+  };
+
+  const findBestMove = (board) => {
+    const validMoves = getValidMoves(board);
+    let bestScore = -Infinity;
+    let bestMove = null;
+
+    for (const move of validMoves) {
+      board[move.row][move.col] = 'O';
+      let score = evaluateBoard(board, 'O') - evaluateBoard(board, 'X');
+      board[move.row][move.col] = null;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+    }
+
+    return bestMove || validMoves[0];
   };
 
   return (
