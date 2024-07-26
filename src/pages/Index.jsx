@@ -12,12 +12,14 @@ const Index = () => {
   const [gameMode, setGameMode] = useState('pvp'); // 'pvp' or 'ai'
   const [simulationTime, setSimulationTime] = useState(DEFAULT_SIMULATION_TIME);
   const [isAIThinking, setIsAIThinking] = useState(false);
+  const [aiStats, setAiStats] = useState(null);
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../aiWorker.js', import.meta.url));
     workerRef.current.onmessage = (e) => {
-      const aiMove = e.data;
-      handleMove(aiMove.row, aiMove.col);
+      const { move, simulations, winRate, totalVisits } = e.data;
+      handleMove(move.row, move.col);
+      setAiStats({ simulations, winRate, totalVisits });
       setIsAIThinking(false);
     };
 
@@ -130,6 +132,14 @@ const Index = () => {
       <Button onClick={resetGame} className="mt-6">
         Reset Game
       </Button>
+      {gameMode === 'ai' && aiStats && (
+        <div className="mt-4 p-4 bg-gray-100 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2">AI Introspection</h3>
+          <p>Simulations: {aiStats.simulations}</p>
+          <p>Win Rate: {(aiStats.winRate * 100).toFixed(2)}%</p>
+          <p>Total Visits: {aiStats.totalVisits}</p>
+        </div>
+      )}
     </div>
   );
 };

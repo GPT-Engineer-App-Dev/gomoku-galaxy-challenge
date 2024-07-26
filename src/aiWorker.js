@@ -5,15 +5,17 @@ const BOARD_SIZE = 15;
 
 self.onmessage = function(e) {
   const { board, simulationTime } = e.data;
-  const bestMove = findBestMove(board, simulationTime);
-  self.postMessage(bestMove);
+  const result = findBestMove(board, simulationTime);
+  self.postMessage(result);
 };
 
 function findBestMove(board, simulationTime) {
   const rootNode = new MCTSNode(board, 'O');
   const endTime = Date.now() + simulationTime;
+  let simulations = 0;
 
   while (Date.now() < endTime) {
+    simulations++;
     let node = rootNode;
     let tempBoard = board.map(row => [...row]);
 
@@ -47,7 +49,14 @@ function findBestMove(board, simulationTime) {
     }
   }
 
-  return rootNode.children.reduce((best, child) => 
+  const bestChild = rootNode.children.reduce((best, child) => 
     child.visits > best.visits ? child : best
-  ).move;
+  );
+
+  return {
+    move: bestChild.move,
+    simulations,
+    winRate: bestChild.wins / bestChild.visits,
+    totalVisits: rootNode.visits,
+  };
 }
